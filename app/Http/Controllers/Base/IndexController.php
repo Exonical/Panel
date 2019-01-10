@@ -4,6 +4,8 @@ namespace Pterodactyl\Http\Controllers\Base;
 
 use Illuminate\Http\Request;
 use Pterodactyl\Models\User;
+use Illuminate\Http\Response;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Pterodactyl\Http\Controllers\Controller;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -54,7 +56,7 @@ class IndexController extends Controller
     public function getIndex(Request $request)
     {
         $servers = $this->repository->setSearchTerm($request->input('query'))->filterUserAccessServers(
-            $request->user(), User::FILTER_LEVEL_ALL
+            $request->user(), User::FILTER_LEVEL_ALL, config('pterodactyl.paginate.frontend.servers')
         );
 
         return view('base.index', ['servers' => $servers]);
@@ -81,6 +83,8 @@ class IndexController extends Controller
 
         try {
             $response = $this->daemonRepository->setServer($server)->setToken($token)->details();
+        } catch (ConnectException $exception) {
+            throw new HttpException(Response::HTTP_GATEWAY_TIMEOUT, $exception->getMessage());
         } catch (RequestException $exception) {
             throw new HttpException(500, $exception->getMessage());
         }

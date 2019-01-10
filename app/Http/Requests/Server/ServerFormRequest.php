@@ -2,12 +2,13 @@
 
 namespace Pterodactyl\Http\Requests\Server;
 
+use Pterodactyl\Models\Server;
 use Pterodactyl\Http\Requests\FrontendUserFormRequest;
 
 abstract class ServerFormRequest extends FrontendUserFormRequest
 {
     /**
-     * Return the user permission to validate this request aganist.
+     * Return the user permission to validate this request against.
      *
      * @return string
      */
@@ -24,6 +25,11 @@ abstract class ServerFormRequest extends FrontendUserFormRequest
             return false;
         }
 
-        return $this->user()->can($this->permission(), $this->attributes->get('server'));
+        return $this->user()->can($this->permission(), $this->getServer());
+    }
+
+    public function getServer(): Server
+    {
+        return $this->attributes->get('server');
     }
 }

@@ -4,12 +4,14 @@ namespace Tests\Unit\Services\Servers;
 
 use Mockery as m;
 use Tests\TestCase;
-use Pterodactyl\Models\Node;
+use Pterodactyl\Models\Egg;
 use Pterodactyl\Models\User;
 use Tests\Traits\MocksUuids;
 use Pterodactyl\Models\Server;
+use Pterodactyl\Models\Allocation;
 use Tests\Traits\MocksRequestException;
 use Illuminate\Database\ConnectionInterface;
+use Pterodactyl\Models\Objects\DeploymentObject;
 use Pterodactyl\Services\Servers\ServerCreationService;
 use Pterodactyl\Services\Servers\VariableValidatorService;
 use Pterodactyl\Services\Deployment\FindViableNodesService;
@@ -35,7 +37,7 @@ class ServerCreationServiceTest extends TestCase
     private $allocationRepository;
 
     /**
-     * @var \Pterodactyl\Services\Deployment\AllocationSelectionService
+     * @var \Pterodactyl\Services\Deployment\AllocationSelectionService|\Mockery\Mock
      */
     private $allocationSelectionService;
 
@@ -55,12 +57,12 @@ class ServerCreationServiceTest extends TestCase
     private $daemonServerRepository;
 
     /**
-     * @var \Pterodactyl\Contracts\Repository\EggRepositoryInterface
+     * @var \Pterodactyl\Contracts\Repository\EggRepositoryInterface|\Mockery\Mock
      */
     private $eggRepository;
 
     /**
-     * @var \Pterodactyl\Services\Deployment\FindViableNodesService
+     * @var \Pterodactyl\Services\Deployment\FindViableNodesService|\Mockery\Mock
      */
     private $findViableNodesService;
 
@@ -114,9 +116,16 @@ class ServerCreationServiceTest extends TestCase
         ]);
 
         $this->connection->shouldReceive('beginTransaction')->withNoArgs()->once()->andReturnNull();
+        $this->repository->shouldReceive('isUniqueUuidCombo')
+            ->once()
+            ->with($this->getKnownUuid(), substr($this->getKnownUuid(), 0, 8))
+            ->andReturn(true);
+
         $this->repository->shouldReceive('create')->with(m::subset([
             'uuid' => $this->getKnownUuid(),
+            'uuidShort' => substr($this->getKnownUuid(), 0, 8),
             'node_id' => $model->node_id,
+            'allocation_id' => $model->allocation_id,
             'owner_id' => $model->owner_id,
             'nest_id' => $model->nest_id,
             'egg_id' => $model->egg_id,
@@ -148,6 +157,98 @@ class ServerCreationServiceTest extends TestCase
     }
 
     /**
+     * Test that optional parameters get auto-filled correctly on the model.
+     */
+    public function testDataIsAutoFilled()
+    {
+        $model = factory(Server::class)->make(['uuid' => $this->getKnownUuid()]);
+        $allocationModel = factory(Allocation::class)->make(['node_id' => $model->node_id]);
+        $eggModel = factory(Egg::class)->make(['nest_id' => $model->nest_id]);
+
+        $this->connection->shouldReceive('beginTransaction')->once()->withNoArgs();
+        $this->allocationRepository->shouldReceive('setColumns->find')->once()->with($model->allocation_id)->andReturn($allocationModel);
+        $this->eggRepository->shouldReceive('setColumns->find')->once()->with($model->egg_id)->andReturn($eggModel);
+
+        $this->validatorService->shouldReceive('setUserLevel->handle')->once()->andReturn(collect([]));
+        $this->repository->shouldReceive('isUniqueUuidCombo')
+            ->once()
+            ->with($this->getKnownUuid(), substr($this->getKnownUuid(), 0, 8))
+            ->andReturn(true);
+
+        $this->repository->shouldReceive('create')->with(m::subset([
+            'uuid' => $this->getKnownUuid(),
+            'uuidShort' => substr($this->getKnownUuid(), 0, 8),
+            'node_id' => $model->node_id,
+            'allocation_id' => $model->allocation_id,
+            'nest_id' => $model->nest_id,
+            'egg_id' => $model->egg_id,
+        ]))->andReturn($model);
+
+        $this->allocationRepository->shouldReceive('assignAllocationsToServer')->once()->with($model->id, [$model->allocation_id]);
+        $this->configurationStructureService->shouldReceive('handle')->once()->with($model)->andReturn([]);
+
+        $this->daemonServerRepository->shouldReceive('setServer->create')->once();
+        $this->connection->shouldReceive('commit')->once()->withNoArgs()->andReturnNull();
+
+        $this->getService()->handle(
+            collect($model->toArray())->except(['node_id', 'nest_id'])->toArray()
+        );
+    }
+
+    /**
+     * Test that an auto-deployment object is used correctly if passed.
+     */
+    public function testAutoDeploymentObject()
+    {
+        $model = factory(Server::class)->make(['uuid' => $this->getKnownUuid()]);
+        $deploymentObject = new DeploymentObject();
+        $deploymentObject->setPorts(['25565']);
+        $deploymentObject->setDedicated(false);
+        $deploymentObject->setLocations([1]);
+
+        $this->connection->shouldReceive('beginTransaction')->once()->withNoArgs();
+
+        $this->findViableNodesService->shouldReceive('setLocations')->once()->with($deploymentObject->getLocations())->andReturnSelf();
+        $this->findViableNodesService->shouldReceive('setDisk')->once()->with($model->disk)->andReturnSelf();
+        $this->findViableNodesService->shouldReceive('setMemory')->once()->with($model->memory)->andReturnSelf();
+        $this->findViableNodesService->shouldReceive('handle')->once()->withNoArgs()->andReturn([1, 2]);
+
+        $allocationModel = factory(Allocation::class)->make([
+            'id' => $model->allocation_id,
+            'node_id' => $model->node_id,
+        ]);
+        $this->allocationSelectionService->shouldReceive('setDedicated')->once()->with($deploymentObject->isDedicated())->andReturnSelf();
+        $this->allocationSelectionService->shouldReceive('setNodes')->once()->with([1, 2])->andReturnSelf();
+        $this->allocationSelectionService->shouldReceive('setPorts')->once()->with($deploymentObject->getPorts())->andReturnSelf();
+        $this->allocationSelectionService->shouldReceive('handle')->once()->withNoArgs()->andReturn($allocationModel);
+
+        $this->validatorService->shouldReceive('setUserLevel->handle')->once()->andReturn(collect([]));
+        $this->repository->shouldReceive('isUniqueUuidCombo')
+            ->once()
+            ->with($this->getKnownUuid(), substr($this->getKnownUuid(), 0, 8))
+            ->andReturn(true);
+
+        $this->repository->shouldReceive('create')->with(m::subset([
+            'uuid' => $this->getKnownUuid(),
+            'uuidShort' => substr($this->getKnownUuid(), 0, 8),
+            'node_id' => $model->node_id,
+            'allocation_id' => $model->allocation_id,
+            'nest_id' => $model->nest_id,
+            'egg_id' => $model->egg_id,
+        ]))->andReturn($model);
+
+        $this->allocationRepository->shouldReceive('assignAllocationsToServer')->once()->with($model->id, [$model->allocation_id]);
+        $this->configurationStructureService->shouldReceive('handle')->once()->with($model)->andReturn([]);
+
+        $this->daemonServerRepository->shouldReceive('setServer->create')->once();
+        $this->connection->shouldReceive('commit')->once()->withNoArgs()->andReturnNull();
+
+        $this->getService()->handle(
+            collect($model->toArray())->except(['allocation_id', 'node_id'])->toArray(), $deploymentObject
+        );
+    }
+
+    /**
      * Test handling of node timeout or other daemon error.
      *
      * @expectedException \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
@@ -161,6 +262,7 @@ class ServerCreationServiceTest extends TestCase
         ]);
 
         $this->connection->shouldReceive('beginTransaction')->withNoArgs()->once()->andReturnNull();
+        $this->repository->shouldReceive('isUniqueUuidCombo')->once()->andReturn(true);
         $this->repository->shouldReceive('create')->once()->andReturn($model);
         $this->allocationRepository->shouldReceive('assignAllocationsToServer')->once()->andReturn(1);
         $this->validatorService->shouldReceive('setUserLevel')->once()->andReturnSelf();

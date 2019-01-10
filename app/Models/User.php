@@ -4,6 +4,7 @@ namespace Pterodactyl\Models;
 
 use Sofa\Eloquence\Eloquence;
 use Sofa\Eloquence\Validable;
+use Pterodactyl\Rules\Username;
 use Illuminate\Validation\Rules\In;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -63,6 +64,7 @@ class User extends Model implements
      * @var array
      */
     protected $fillable = [
+        'external_id',
         'username',
         'email',
         'name_first',
@@ -119,6 +121,7 @@ class User extends Model implements
      * @var array
      */
     protected $attributes = [
+        'external_id' => null,
         'root_admin' => false,
         'language' => 'en',
         'use_totp' => false,
@@ -151,7 +154,7 @@ class User extends Model implements
         'uuid' => 'string|size:36|unique:users,uuid',
         'email' => 'email|unique:users,email',
         'external_id' => 'nullable|string|max:255|unique:users,external_id',
-        'username' => 'alpha_dash|between:1,255|unique:users,username',
+        'username' => 'between:1,255|unique:users,username',
         'name_first' => 'string|between:1,255',
         'name_last' => 'string|between:1,255',
         'password' => 'nullable|string',
@@ -169,6 +172,7 @@ class User extends Model implements
     {
         $rules = self::eloquenceGatherRules();
         $rules['language'][] = new In(array_keys((new self)->getAvailableLanguages()));
+        $rules['username'][] = new Username;
 
         return $rules;
     }
@@ -184,17 +188,17 @@ class User extends Model implements
     }
 
     /**
-     * Store the username as a lowecase string.
+     * Store the username as a lowercase string.
      *
      * @param string $value
      */
-    public function setUsernameAttribute($value)
+    public function setUsernameAttribute(string $value)
     {
-        $this->attributes['username'] = strtolower($value);
+        $this->attributes['username'] = mb_strtolower($value);
     }
 
     /**
-     * Return a concated result for the accounts full name.
+     * Return a concatenated result for the accounts full name.
      *
      * @return string
      */

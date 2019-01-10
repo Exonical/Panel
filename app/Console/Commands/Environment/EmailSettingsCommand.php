@@ -59,6 +59,7 @@ class EmailSettingsCommand extends Command
 
     /**
      * Handle command execution.
+     * @throws \Pterodactyl\Exceptions\PterodactylException
      */
     public function handle()
     {
@@ -126,7 +127,7 @@ class EmailSettingsCommand extends Command
             trans('command/messages.environment.mail.ask_mailgun_domain'), $this->config->get('services.mailgun.domain')
         );
 
-        $this->variables['MAILGUN_KEY'] = $this->option('password') ?? $this->ask(
+        $this->variables['MAILGUN_SECRET'] = $this->option('password') ?? $this->ask(
             trans('command/messages.environment.mail.ask_mailgun_secret'), $this->config->get('services.mailgun.secret')
         );
     }

@@ -33,13 +33,17 @@ class RouteServiceProvider extends ServiceProvider
              ->namespace($this->namespace . '\Auth')
              ->group(base_path('routes/auth.php'));
 
-        Route::middleware(['web', 'csrf', 'auth', 'server', 'subuser.auth'])->prefix('/server/{server}')
+        Route::middleware(['web', 'csrf', 'auth', 'server', 'subuser.auth', 'node.maintenance'])->prefix('/server/{server}')
              ->namespace($this->namespace . '\Server')
              ->group(base_path('routes/server.php'));
 
         Route::middleware(['api'])->prefix('/api/application')
             ->namespace($this->namespace . '\Api\Application')
             ->group(base_path('routes/api-application.php'));
+
+        Route::middleware(['client-api'])->prefix('/api/client')
+            ->namespace($this->namespace . '\Api\Client')
+            ->group(base_path('routes/api-client.php'));
 
         Route::middleware(['daemon'])->prefix('/api/remote')
             ->namespace($this->namespace . '\Api\Remote')

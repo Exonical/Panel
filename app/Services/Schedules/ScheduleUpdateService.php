@@ -15,18 +15,21 @@ class ScheduleUpdateService
      * @var \Illuminate\Database\ConnectionInterface
      */
     private $connection;
+
     /**
      * @var \Pterodactyl\Contracts\Repository\ScheduleRepositoryInterface
      */
     private $repository;
-    /**
-     * @var \Pterodactyl\Contracts\Repository\TaskRepositoryInterface
-     */
-    private $taskRepository;
+
     /**
      * @var \Pterodactyl\Services\Schedules\Tasks\TaskCreationService
      */
     private $taskCreationService;
+
+    /**
+     * @var \Pterodactyl\Contracts\Repository\TaskRepositoryInterface
+     */
+    private $taskRepository;
 
     /**
      * ScheduleUpdateService constructor.
@@ -95,7 +98,7 @@ class ScheduleUpdateService
      */
     private function getCronTimestamp(array $data)
     {
-        $formattedCron = sprintf('%s %s %s * %s *',
+        $formattedCron = sprintf('%s %s %s * %s',
             array_get($data, 'cron_minute', '*'),
             array_get($data, 'cron_hour', '*'),
             array_get($data, 'cron_day_of_month', '*'),

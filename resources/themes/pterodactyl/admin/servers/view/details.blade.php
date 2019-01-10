@@ -30,8 +30,8 @@
                     <li><a href="{{ route('admin.servers.view.build', $server->id) }}">Build Configuration</a></li>
                     <li><a href="{{ route('admin.servers.view.startup', $server->id) }}">Startup</a></li>
                     <li><a href="{{ route('admin.servers.view.database', $server->id) }}">Database</a></li>
+                    <li><a href="{{ route('admin.servers.view.manage', $server->id) }}">Manage</a></li>
                 @endif
-                <li><a href="{{ route('admin.servers.view.manage', $server->id) }}">Manage</a></li>
                 <li class="tab-danger"><a href="{{ route('admin.servers.view.delete', $server->id) }}">Delete</a></li>
                 <li class="tab-success"><a href="{{ route('server.index', $server->uuidShort) }}"><i class="fa fa-external-link"></i></a></li>
             </ul>
@@ -47,12 +47,17 @@
             <form action="{{ route('admin.servers.view.details', $server->id) }}" method="POST">
                 <div class="box-body">
                     <div class="form-group">
-                        <label for="name" class="control-label">Server Name</label>
+                        <label for="name" class="control-label">Server Name <span class="field-required"></span></label>
                         <input type="text" name="name" value="{{ old('name', $server->name) }}" class="form-control" />
                         <p class="text-muted small">Character limits: <code>a-zA-Z0-9_-</code> and <code>[Space]</code> (max 35 characters).</p>
                     </div>
                     <div class="form-group">
-                        <label for="pUserId" class="control-label">Server Owner</label>
+                        <label for="external_id" class="control-label">External Identifier</label>
+                        <input type="text" name="external_id" value="{{ old('external_id', $server->external_id) }}" class="form-control" />
+                        <p class="text-muted small">Leave empty to not assign an external identifier for this server. The external ID should be unique to this server and not be in use by any other servers.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="pUserId" class="control-label">Server Owner <span class="field-required"></span></label>
                         <select name="owner_id" class="form-control" id="pUserId">
                             <option value="{{ $server->owner_id }}" selected>{{ $server->user->email }}</option>
                         </select>

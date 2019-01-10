@@ -55,6 +55,10 @@ class ActionsClass {
             showLoaderOnConfirm: true,
             inputValue: inputValue
         }, (val) => {
+            if (val === false) {
+                return false;
+            }
+
             $.ajax({
                 type: 'POST',
                 headers: {
@@ -72,7 +76,7 @@ class ActionsClass {
                 Files.list();
             }).fail(jqXHR => {
                 console.error(jqXHR);
-                var error = 'An error occured while trying to process this request.';
+                var error = 'An error occurred while trying to process this request.';
                 if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                     error = jqXHR.responseJSON.error;
                 }
@@ -100,6 +104,10 @@ class ActionsClass {
             showLoaderOnConfirm: true,
             inputValue: `${currentPath}${currentName}`,
         }, (val) => {
+            if (val === false) {
+                return false;
+            }
+
             $.ajax({
                 type: 'POST',
                 headers: {
@@ -118,7 +126,7 @@ class ActionsClass {
                 swal.close();
             }).fail(jqXHR => {
                 console.error(jqXHR);
-                var error = 'An error occured while trying to process this request.';
+                var error = 'An error occurred while trying to process this request.';
                 if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                     error = jqXHR.responseJSON.error;
                 }
@@ -198,7 +206,7 @@ class ActionsClass {
                 inputField.remove();
             }).fail(jqXHR => {
                 console.error(jqXHR);
-                var error = 'An error occured while trying to process this request.';
+                var error = 'An error occurred while trying to process this request.';
                 if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                     error = jqXHR.responseJSON.error;
                 }
@@ -233,6 +241,10 @@ class ActionsClass {
             showLoaderOnConfirm: true,
             inputValue: `${currentPath}${currentName}`,
         }, (val) => {
+            if (val === false) {
+                return false;
+            }
+
             $.ajax({
                 type: 'POST',
                 headers: {
@@ -255,7 +267,7 @@ class ActionsClass {
                 Files.list();
             }).fail(jqXHR => {
                 console.error(jqXHR);
-                var error = 'An error occured while trying to process this request.';
+                var error = 'An error occurred while trying to process this request.';
                 if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                     error = jqXHR.responseJSON.error;
                 }
@@ -284,7 +296,7 @@ class ActionsClass {
         swal({
             type: 'warning',
             title: '',
-            text: 'Are you sure you want to delete <code>' + delName + '</code>? There is <strong>no</strong> reversing this action.',
+            text: 'Are you sure you want to delete <code>' + delName + '</code>?',
             html: true,
             showCancelButton: true,
             showConfirmButton: true,
@@ -315,7 +327,7 @@ class ActionsClass {
                     type: 'error',
                     title: 'Whoops!',
                     html: true,
-                    text: 'An error occured while attempting to delete this file. Please try again.',
+                    text: 'An error occurred while attempting to delete this file. Please try again.',
                 });
             });
         });
@@ -380,16 +392,22 @@ class ActionsClass {
         if (selectedItems.length != 0)
         {
             let formattedItems = "";
+            let i = 0;
             $.each(selectedItems, function(key, value) {
-              formattedItems += ("<code>" + value + "</code>, ");
-            })
+                formattedItems += ("<code>" + value + "</code>, ");
+                i++;
+                return i < 5;
+            });
 
             formattedItems = formattedItems.slice(0, -2);
+            if (selectedItems.length > 5) {
+                formattedItems += ', and ' + (selectedItems.length - 5) + ' other(s)';
+            }
 
             swal({
                 type: 'warning',
                 title: '',
-                text: 'Are you sure you want to delete:' + formattedItems + '? There is <strong>no</strong> reversing this action.',
+                text: 'Are you sure you want to delete the following files: ' + formattedItems + '?',
                 html: true,
                 showCancelButton: true,
                 showConfirmButton: true,
@@ -427,7 +445,7 @@ class ActionsClass {
                         type: 'error',
                         title: 'Whoops!',
                         html: true,
-                        text: 'An error occured while attempting to delete these files. Please try again.',
+                        text: 'An error occurred while attempting to delete these files. Please try again.',
                     });
                 });
             });
@@ -470,7 +488,7 @@ class ActionsClass {
             Files.list(compPath);
         }).fail(jqXHR => {
             console.error(jqXHR);
-            var error = 'An error occured while trying to process this request.';
+            var error = 'An error occurred while trying to process this request.';
             if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                 error = jqXHR.responseJSON.error;
             }
@@ -510,7 +528,7 @@ class ActionsClass {
             });
         }).fail(jqXHR => {
             console.error(jqXHR);
-            var error = 'An error occured while trying to process this request.';
+            var error = 'An error occurred while trying to process this request.';
             if (typeof jqXHR.responseJSON !== 'undefined' && typeof jqXHR.responseJSON.error !== 'undefined') {
                 error = jqXHR.responseJSON.error;
             }

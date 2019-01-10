@@ -68,7 +68,7 @@
                                 <input type="text" name="default_value" value="{{ $variable->default_value }}" class="form-control" />
                             </div>
                             <div class="col-xs-12">
-                                <p class="text-muted small">This variable can be accessed in the statup command by using <code>{{ $variable->env_variable }}</code>.</p>
+                                <p class="text-muted small">This variable can be accessed in the startup command by using <code>{{ $variable->env_variable }}</code>.</p>
                             </div>
                         </div>
                         <div class="form-group">
@@ -86,8 +86,8 @@
                     </div>
                     <div class="box-footer">
                         {!! csrf_field() !!}
-                        <button class="btn btn-sm btn-danger pull-left muted muted-hover" data-action="delete" name="_method" value="DELETE" type="submit"><i class="fa fa-trash-o"></i></button>
                         <button class="btn btn-sm btn-primary pull-right" name="_method" value="PATCH" type="submit">Save</button>
+                        <button class="btn btn-sm btn-danger pull-left muted muted-hover" data-action="delete" name="_method" value="DELETE" type="submit"><i class="fa fa-trash-o"></i></button>
                     </div>
                 </form>
             </div>
@@ -105,23 +105,23 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label class="control-label">Name <span class="field-required"></span></label>
-                        <input type="text" name="name" class="form-control" />
+                        <input type="text" name="name" class="form-control" value="{{ old('name') }}"/>
                     </div>
                     <div class="form-group">
                         <label class="control-label">Description</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
+                        <textarea name="description" class="form-control" rows="3">{{ old('description') }}</textarea>
                     </div>
                     <div class="row">
                         <div class="form-group col-md-6">
                             <label class="control-label">Environment Variable <span class="field-required"></span></label>
-                            <input type="text" name="env_variable" class="form-control" />
+                            <input type="text" name="env_variable" class="form-control" value="{{ old('env_variable') }}" />
                         </div>
                         <div class="form-group col-md-6">
                             <label class="control-label">Default Value</label>
-                            <input type="text" name="default_value" class="form-control" />
+                            <input type="text" name="default_value" class="form-control" value="{{ old('default_value') }}" />
                         </div>
                         <div class="col-xs-12">
-                            <p class="text-muted small">This variable can be accessed in the statup command by entering <code>@{{environment variable value}}</code>.</p>
+                            <p class="text-muted small">This variable can be accessed in the startup command by entering <code>@{{environment variable value}}</code>.</p>
                         </div>
                     </div>
                     <div class="form-group">
@@ -133,7 +133,7 @@
                     </div>
                     <div class="form-group">
                         <label class="control-label">Input Rules <span class="field-required"></span></label>
-                        <input type="text" name="rules" class="form-control" value="required|string|max:20" placeholder="required|string|max:20" />
+                        <input type="text" name="rules" class="form-control" value="{{ old('rules', 'required|string|max:20') }}" placeholder="required|string|max:20" />
                         <p class="text-muted small">These rules are defined using standard Laravel Framework validation rules.</p>
                     </div>
                 </div>

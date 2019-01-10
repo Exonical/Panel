@@ -20,7 +20,7 @@
                                         </optgroup>
                                     @endforeach
                                 </select>
-                                <p class="text-muted small">The Egg that this pack is assocaited with. Only servers that are assigned this Egg will be able to access this pack.</p>
+                                <p class="text-muted small">The Egg that this pack is associated with. Only servers that are assigned this Egg will be able to access this pack.</p>
                             </div>
                         </div>
                         <div class="row" style="margin-top:15px;">
@@ -38,8 +38,8 @@
                 </div>
                 <div class="modal-footer">
                     {!! csrf_field() !!}
-                    <button type="button" class="btn btn-default btn-sm pull-left" data-dismiss="modal">Cancel</button>
                     <button type="submit" name="action" value="from_template" class="btn btn-primary btn-sm">Install</button>
+                    <button type="button" class="btn btn-default btn-sm pull-left" data-dismiss="modal">Cancel</button>
                 </div>
             </form>
         </div>

@@ -56,7 +56,7 @@
                         @foreach ($nodes as $node)
                             <tr>
                                 <td class="text-center text-muted left-icon" data-action="ping" data-secret="{{ $node->daemonSecret }}" data-location="{{ $node->scheme }}://{{ $node->fqdn }}:{{ $node->daemonListen }}/v1"><i class="fa fa-fw fa-refresh fa-spin"></i></td>
-                                <td><a href="{{ route('admin.nodes.view', $node->id) }}">{{ $node->name }}</td>
+                                <td>{!! $node->maintenance_mode ? '<span class="label label-warning"><i class="fa fa-wrench"></i></span> ' : '' !!}<a href="{{ route('admin.nodes.view', $node->id) }}">{{ $node->name }}</a></td>
                                 <td>{{ $node->location->short }}</td>
                                 <td>{{ $node->memory }} MB</td>
                                 <td>{{ $node->disk }} MB</td>
@@ -70,7 +70,7 @@
             </div>
             @if($nodes->hasPages())
                 <div class="box-footer with-border">
-                    <div class="col-md-12 text-center">{!! $nodes->render() !!}</div>
+                    <div class="col-md-12 text-center">{!! $nodes->appends(['query' => Request::input('query')])->render() !!}</div>
                 </div>
             @endif
         </div>
@@ -95,8 +95,14 @@
                     title: 'v' + data.version,
                 });
                 $(element).removeClass('text-muted').find('i').removeClass().addClass('fa fa-fw fa-heartbeat faa-pulse animated').css('color', '#50af51');
-            }).fail(function () {
+            }).fail(function (error) {
+                var errorText = 'Error connecting to node! Check browser console for details.';
+                try {
+                    errorText = error.responseJSON.errors[0].detail || errorText;
+                } catch (ex) {}
+
                 $(element).removeClass('text-muted').find('i').removeClass().addClass('fa fa-fw fa-heart-o').css('color', '#d9534f');
+                $(element).find('i').tooltip({ title: errorText });
             });
         }).promise().done(function () {
             setTimeout(pingNodes, 10000);

@@ -22,6 +22,7 @@ class AppSettingsCommand extends Command
     const ALLOWED_CACHE_DRIVERS = [
         'redis' => 'Redis (recommended)',
         'memcached' => 'Memcached',
+        'file' => 'Filesystem',
     ];
 
     const ALLOWED_SESSION_DRIVERS = [
@@ -57,7 +58,7 @@ class AppSettingsCommand extends Command
      * @var string
      */
     protected $signature = 'p:environment:setup
-                            {--new-salt : Wether or not to generate a new salt for Hashids.}
+                            {--new-salt : Whether or not to generate a new salt for Hashids.}
                             {--author= : The email that services created on this instance should be linked to.}
                             {--url= : The URL that this Panel is running on.}
                             {--timezone= : The timezone to use for Panel times.}
@@ -131,7 +132,7 @@ class AppSettingsCommand extends Command
         );
 
         $selected = $this->config->get('queue.default', 'redis');
-        $this->variables['QUEUE_DRIVER'] = $this->option('queue') ?? $this->choice(
+        $this->variables['QUEUE_CONNECTION'] = $this->option('queue') ?? $this->choice(
             trans('command/messages.environment.app.queue_driver'),
             self::ALLOWED_QUEUE_DRIVERS,
             array_key_exists($selected, self::ALLOWED_QUEUE_DRIVERS) ? $selected : null

@@ -41,13 +41,14 @@ class Node extends Model implements CleansAttributes, ValidableContract
      * @var array
      */
     protected $casts = [
-        'public' => 'integer',
         'location_id' => 'integer',
         'memory' => 'integer',
         'disk' => 'integer',
         'daemonListen' => 'integer',
         'daemonSFTP' => 'integer',
         'behind_proxy' => 'boolean',
+        'public' => 'boolean',
+        'maintenance_mode' => 'boolean',
     ];
 
     /**
@@ -62,6 +63,7 @@ class Node extends Model implements CleansAttributes, ValidableContract
         'disk_overallocate', 'upload_size',
         'daemonSecret', 'daemonBase',
         'daemonSFTP', 'daemonListen',
+        'description', 'maintenance_mode',
     ];
 
     /**
@@ -98,6 +100,7 @@ class Node extends Model implements CleansAttributes, ValidableContract
      */
     protected static $dataIntegrityRules = [
         'name' => 'regex:/^([\w .-]{1,100})$/',
+        'description' => 'string',
         'location_id' => 'exists:locations,id',
         'public' => 'boolean',
         'fqdn' => 'string',
@@ -109,6 +112,8 @@ class Node extends Model implements CleansAttributes, ValidableContract
         'daemonBase' => 'regex:/^([\/][\d\w.\-\/]+)$/',
         'daemonSFTP' => 'numeric|between:1024,65535',
         'daemonListen' => 'numeric|between:1024,65535',
+        'maintenance_mode' => 'boolean',
+        'upload_size' => 'int|between:1,1024',
     ];
 
     /**
@@ -124,6 +129,7 @@ class Node extends Model implements CleansAttributes, ValidableContract
         'daemonBase' => '/srv/daemon-data',
         'daemonSFTP' => 2022,
         'daemonListen' => 8080,
+        'maintenance_mode' => false,
     ];
 
     /**
@@ -153,6 +159,20 @@ class Node extends Model implements CleansAttributes, ValidableContract
                 ],
                 'socket' => '/var/run/docker.sock',
                 'autoupdate_images' => true,
+            ],
+            'filesystem' => [
+                'server_logs' => '/tmp/pterodactyl',
+            ],
+            'internals' => [
+                'disk_use_seconds' => 30,
+                'set_permissions_on_boot' => true,
+                'throttle' => [
+                    'enabled' => true,
+                    'kill_at_count' => 5,
+                    'decay' => 10,
+                    'lines' => 1000,
+                    'check_interval_ms' => 100,
+                ],
             ],
             'sftp' => [
                 'path' => $this->daemonBase,

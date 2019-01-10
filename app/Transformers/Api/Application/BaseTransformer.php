@@ -5,9 +5,15 @@ namespace Pterodactyl\Transformers\Api\Application;
 use Cake\Chronos\Chronos;
 use Pterodactyl\Models\ApiKey;
 use Illuminate\Container\Container;
+use Illuminate\Database\Eloquent\Model;
 use League\Fractal\TransformerAbstract;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
+use Pterodactyl\Transformers\Api\Client\BaseClientTransformer;
+use Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException;
 
+/**
+ * @method array transform(Model $model)
+ */
 abstract class BaseTransformer extends TransformerAbstract
 {
     const RESPONSE_TIMEZONE = 'UTC';
@@ -78,12 +84,18 @@ abstract class BaseTransformer extends TransformerAbstract
      * @param string $abstract
      * @param array  $parameters
      * @return \Pterodactyl\Transformers\Api\Application\BaseTransformer
+     *
+     * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    protected function makeTransformer(string $abstract, array $parameters = []): self
+    protected function makeTransformer(string $abstract, array $parameters = [])
     {
         /** @var \Pterodactyl\Transformers\Api\Application\BaseTransformer $transformer */
         $transformer = Container::getInstance()->makeWith($abstract, $parameters);
         $transformer->setKey($this->getKey());
+
+        if (! $transformer instanceof self || $transformer instanceof BaseClientTransformer) {
+            throw new InvalidTransformerLevelException('Calls to ' . __METHOD__ . ' must return a transformer that is an instance of ' . __CLASS__);
+        }
 
         return $transformer;
     }

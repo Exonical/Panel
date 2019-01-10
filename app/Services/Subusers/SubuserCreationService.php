@@ -117,9 +117,10 @@ class SubuserCreationService
                 throw new ServerSubuserExistsException(trans('exceptions.subusers.subuser_exists'));
             }
         } catch (RecordNotFoundException $exception) {
+            $username = preg_replace('/([^\w\.-]+)/', '', strtok($email, '@'));
             $user = $this->userCreationService->handle([
                 'email' => $email,
-                'username' => substr(strtok($email, '@'), 0, 8) . '_' . str_random(6),
+                'username' => $username . str_random(3),
                 'name_first' => 'Server',
                 'name_last' => 'Subuser',
                 'root_admin' => false,

@@ -96,7 +96,7 @@ class SecurityController extends Controller
     }
 
     /**
-     * Verifies that 2FA token recieved is valid and will work on the account.
+     * Verifies that 2FA token received is valid and will work on the account.
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
@@ -107,7 +107,7 @@ class SecurityController extends Controller
     public function setTotp(Request $request)
     {
         try {
-            $this->toggleTwoFactorService->handle($request->user(), $request->input('token'));
+            $this->toggleTwoFactorService->handle($request->user(), $request->input('token') ?? '');
 
             return response('true');
         } catch (TwoFactorAuthenticationTokenInvalid $exception) {
@@ -127,7 +127,7 @@ class SecurityController extends Controller
     public function disableTotp(Request $request)
     {
         try {
-            $this->toggleTwoFactorService->handle($request->user(), $request->input('token'), false);
+            $this->toggleTwoFactorService->handle($request->user(), $request->input('token') ?? '', false);
         } catch (TwoFactorAuthenticationTokenInvalid $exception) {
             $this->alert->danger(trans('base.security.2fa_disable_error'))->flash();
         }

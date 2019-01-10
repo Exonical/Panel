@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Controllers\Daemon;
 
@@ -14,29 +7,24 @@ use Illuminate\Http\Request;
 use Pterodactyl\Models\Node;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Http\Controllers\Controller;
+use Pterodactyl\Events\Server\Installed as ServerInstalled;
+use Illuminate\Contracts\Events\Dispatcher as EventDispatcher;
 
 class ActionController extends Controller
 {
     /**
-     * Handles download request from daemon.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @var \Illuminate\Contracts\Events\Dispatcher
      */
-    public function authenticateDownload(Request $request)
+    private $eventDispatcher;
+
+    /**
+     * ActionController constructor.
+     *
+     * @param \Illuminate\Contracts\Events\Dispatcher $eventDispatcher
+     */
+    public function __construct(EventDispatcher $eventDispatcher)
     {
-        $download = Cache::tags(['Server:Downloads'])->pull($request->input('token'));
-
-        if (is_null($download)) {
-            return response()->json([
-                'error' => 'An invalid request token was recieved with this request.',
-            ], 403);
-        }
-
-        return response()->json([
-            'path' => $download['path'],
-            'server' => $download['server'],
-        ]);
+        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -66,6 +54,11 @@ class ActionController extends Controller
         $server->installed = ($status === 'installed') ? 1 : 2;
         $server->save();
 
+        // Only fire event if server installed successfully.
+        if ($server->installed === 1) {
+            $this->eventDispatcher->dispatch(new ServerInstalled($server));
+        }
+
         return response()->json([]);
     }
 
@@ -78,7 +71,7 @@ class ActionController extends Controller
      */
     public function configuration(Request $request, $token)
     {
-        $nodeId = Cache::tags(['Node:Configuration'])->pull($token);
+        $nodeId = Cache::pull('Node:Configuration:' . $token);
         if (is_null($nodeId)) {
             return response()->json(['error' => 'token_invalid'], 403);
         }

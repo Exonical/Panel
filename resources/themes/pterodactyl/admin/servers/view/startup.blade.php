@@ -30,8 +30,8 @@
                     <li><a href="{{ route('admin.servers.view.build', $server->id) }}">Build Configuration</a></li>
                     <li class="active"><a href="{{ route('admin.servers.view.startup', $server->id) }}">Startup</a></li>
                     <li><a href="{{ route('admin.servers.view.database', $server->id) }}">Database</a></li>
+                    <li><a href="{{ route('admin.servers.view.manage', $server->id) }}">Manage</a></li>
                 @endif
-                <li><a href="{{ route('admin.servers.view.manage', $server->id) }}">Manage</a></li>
                 <li class="tab-danger"><a href="{{ route('admin.servers.view.delete', $server->id) }}">Delete</a></li>
                 <li class="tab-success"><a href="{{ route('server.index', $server->uuidShort) }}"><i class="fa fa-external-link"></i></a></li>
             </ul>
@@ -70,11 +70,11 @@
                 <div class="box-body row">
                     <div class="col-xs-12">
                         <p class="small text-danger">
-                            Changing any of the below values will result in the server processing a re-install command. The server will be stopped and will then proceede.
-                            If you are changing the pack, exisiting data <em>may</em> be overwritten. If you would like the service scripts to not run, ensure the box is checked at the bottom.
+                            Changing any of the below values will result in the server processing a re-install command. The server will be stopped and will then proceed.
+                            If you are changing the pack, existing data <em>may</em> be overwritten. If you would like the service scripts to not run, ensure the box is checked at the bottom.
                         </p>
                         <p class="small text-danger">
-                            <strong>This is a destructive operation in many cases. This server will be stopped immediately in order for this action to proceede.</strong>
+                            <strong>This is a destructive operation in many cases. This server will be stopped immediately in order for this action to proceed.</strong>
                         </p>
                     </div>
                     <div class="form-group col-xs-12">
@@ -134,26 +134,11 @@
     {!! Theme::js('vendor/lodash/lodash.js') !!}
     <script>
     $(document).ready(function () {
-        $('#pNestId').select2({placeholder: 'Select a Nest'}).change();
-        $('#pEggId').select2({placeholder: 'Select a Nest Egg'});
         $('#pPackId').select2({placeholder: 'Select a Service Pack'});
-    });
-    </script>
-    <script>
-        $('#pNestId').on('change', function (event) {
-            $('#pEggId').html('').select2({
-                data: $.map(_.get(Pterodactyl.nests, $(this).val() + '.eggs', []), function (item) {
-                    return {
-                        id: item.id,
-                        text: item.name,
-                    };
-                }),
-            }).val(Pterodactyl.server.egg_id).change();
-        });
-
-        $('#pEggId').on('change', function (event) {
-            var parentChain = _.get(Pterodactyl.nests, $('#pNestId').val(), null);
-            var objectChain = _.get(parentChain, 'eggs.' + $(this).val(), null);
+        $('#pEggId').select2({placeholder: 'Select a Nest Egg'}).on('change', function () {
+            var selectedEgg = _.isNull($(this).val()) ? $(this).find('option').first().val() : $(this).val();
+            var parentChain = _.get(Pterodactyl.nests, $("#pNestId").val());
+            var objectChain = _.get(parentChain, 'eggs.' + selectedEgg);
 
             $('#setDefaultImage').html(_.get(objectChain, 'docker_image', 'undefined'));
             $('#pDockerImage').val(_.get(objectChain, 'docker_image', 'undefined'));
@@ -168,7 +153,7 @@
             }
 
             $('#pPackId').html('').select2({
-                data: [{ id: '0', text: 'No Service Pack' }].concat(
+                data: [{id: '0', text: 'No Service Pack'}].concat(
                     $.map(_.get(objectChain, 'packs', []), function (item, i) {
                         return {
                             id: item.id,
@@ -202,9 +187,26 @@
                             </div> \
                         </div> \
                     </div>';
-                $('#appendVariablesTo').append(dataAppend);
-                $('#appendVariablesTo').find('#egg_variable_' + item.env_variable).val(setValue);
+                $('#appendVariablesTo').append(dataAppend).find('#egg_variable_' + item.env_variable).val(setValue);
             });
         });
+
+        $('#pNestId').select2({placeholder: 'Select a Nest'}).on('change', function () {
+            $('#pEggId').html('').select2({
+                data: $.map(_.get(Pterodactyl.nests, $(this).val() + '.eggs', []), function (item) {
+                    return {
+                        id: item.id,
+                        text: item.name,
+                    };
+                }),
+            });
+
+            if (_.isObject(_.get(Pterodactyl.nests, $(this).val() + '.eggs.' + Pterodactyl.server.egg_id))) {
+                $('#pEggId').val(Pterodactyl.server.egg_id);
+            }
+
+            $('#pEggId').change();
+        }).change();
+    });
     </script>
 @endsection

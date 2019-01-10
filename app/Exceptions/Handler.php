@@ -5,6 +5,7 @@ namespace Pterodactyl\Exceptions;
 use Exception;
 use PDOException;
 use Psr\Log\LoggerInterface;
+use Illuminate\Container\Container;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +18,13 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 class Handler extends ExceptionHandler
 {
     /**
+     * Laravel's validation parser formats custom rules using the class name
+     * resulting in some weird rule names. This string will be parsed out and
+     * replaced with 'p_' in the response code.
+     */
+    private const PTERODACTYL_RULE_STRING = 'pterodactyl\_rules\_';
+
+    /**
      * A list of the exception types that should not be reported.
      *
      * @var array
@@ -24,12 +32,21 @@ class Handler extends ExceptionHandler
     protected $dontReport = [
         AuthenticationException::class,
         AuthorizationException::class,
-        DisplayException::class,
         HttpException::class,
         ModelNotFoundException::class,
         RecordNotFoundException::class,
         TokenMismatchException::class,
         ValidationException::class,
+    ];
+
+    /**
+     * A list of exceptions that should be logged with cleaned stack
+     * traces to avoid exposing credentials or other sensitive information.
+     *
+     * @var array
+     */
+    protected $cleanStacks = [
+        PDOException::class,
     ];
 
     /**
@@ -73,7 +90,40 @@ class Handler extends ExceptionHandler
             throw $exception;
         }
 
-        return $logger->error($exception instanceof PDOException ? $exception->getMessage() : $exception);
+        foreach ($this->cleanStacks as $class) {
+            if ($exception instanceof $class) {
+                $exception = $this->generateCleanedExceptionStack($exception);
+                break;
+            }
+        }
+
+        return $logger->error($exception);
+    }
+
+    private function generateCleanedExceptionStack(Exception $exception)
+    {
+        $cleanedStack = '';
+        foreach ($exception->getTrace() as $index => $item) {
+            $cleanedStack .= sprintf(
+                "#%d %s(%d): %s%s%s\n",
+                $index,
+                array_get($item, 'file'),
+                array_get($item, 'line'),
+                array_get($item, 'class'),
+                array_get($item, 'type'),
+                array_get($item, 'function')
+            );
+        }
+
+        $message = sprintf(
+            '%s: %s in %s:%d',
+            class_basename($exception),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine()
+        );
+
+        return $message . "\nStack trace:\n" . trim($cleanedStack);
     }
 
     /**
@@ -113,7 +163,9 @@ class Handler extends ExceptionHandler
             $response = [];
             foreach ($errors as $key => $error) {
                 $response[] = [
-                    'code' => array_get($codes, str_replace('.', '_', $field) . '.' . $key),
+                    'code' => str_replace(self::PTERODACTYL_RULE_STRING, 'p_', array_get(
+                        $codes, str_replace('.', '_', $field) . '.' . $key
+                    )),
                     'detail' => $error,
                     'source' => ['field' => $field],
                 ];
@@ -156,6 +208,17 @@ class Handler extends ExceptionHandler
         }
 
         return ['errors' => [array_merge($error, $override)]];
+    }
+
+    /**
+     * Return an array of exceptions that should not be reported.
+     *
+     * @param \Exception $exception
+     * @return bool
+     */
+    public static function isReportable(Exception $exception): bool
+    {
+        return (new static(Container::getInstance()))->shouldReport($exception);
     }
 
     /**

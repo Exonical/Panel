@@ -112,7 +112,9 @@ class ServerCreationService
 
     /**
      * Create a server on the Panel and trigger a request to the Daemon to begin the server
-     * creation process.
+     * creation process. This function will attempt to set as many additional values
+     * as possible given the input data. For example, if an allocation_id is passed with
+     * no node_id the node_is will be picked from the allocation.
      *
      * @param array                                             $data
      * @param \Pterodactyl\Models\Objects\DeploymentObject|null $deployment
@@ -136,6 +138,12 @@ class ServerCreationService
             $allocation = $this->configureDeployment($data, $deployment);
             $data['allocation_id'] = $allocation->id;
             $data['node_id'] = $allocation->node_id;
+        }
+
+        // Auto-configure the node based on the selected allocation
+        // if no node was defined.
+        if (is_null(array_get($data, 'node_id'))) {
+            $data['node_id'] = $this->getNodeFromAllocation($data['allocation_id']);
         }
 
         if (is_null(array_get($data, 'nest_id'))) {
@@ -202,9 +210,12 @@ class ServerCreationService
      */
     private function createModel(array $data): Server
     {
+        $uuid = $this->generateUniqueUuidCombo();
+
         return $this->repository->create([
-            'uuid' => Uuid::uuid4()->toString(),
-            'uuidShort' => str_random(8),
+            'external_id' => array_get($data, 'external_id'),
+            'uuid' => $uuid,
+            'uuidShort' => substr($uuid, 0, 8),
             'node_id' => array_get($data, 'node_id'),
             'name' => array_get($data, 'name'),
             'description' => array_get($data, 'description') ?? '',
@@ -224,6 +235,8 @@ class ServerCreationService
             'startup' => array_get($data, 'startup'),
             'daemonSecret' => str_random(Node::DAEMON_SECRET_LENGTH),
             'image' => array_get($data, 'image'),
+            'database_limit' => array_get($data, 'database_limit'),
+            'allocation_limit' => array_get($data, 'allocation_limit'),
         ]);
     }
 
@@ -262,5 +275,36 @@ class ServerCreationService
         if (! empty($records)) {
             $this->serverVariableRepository->insert($records);
         }
+    }
+
+    /**
+     * Get the node that an allocation belongs to.
+     *
+     * @param int $allocation
+     * @return int
+     *
+     * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
+     */
+    private function getNodeFromAllocation(int $allocation): int
+    {
+        $allocation = $this->allocationRepository->setColumns(['id', 'node_id'])->find($allocation);
+
+        return $allocation->node_id;
+    }
+
+    /**
+     * Create a unique UUID and UUID-Short combo for a server.
+     *
+     * @return string
+     */
+    private function generateUniqueUuidCombo(): string
+    {
+        $uuid = Uuid::uuid4()->toString();
+
+        if (! $this->repository->isUniqueUuidCombo($uuid, substr($uuid, 0, 8))) {
+            return $this->generateUniqueUuidCombo();
+        }
+
+        return $uuid;
     }
 }

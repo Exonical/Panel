@@ -5,6 +5,7 @@ namespace Pterodactyl\Transformers\Api\Application;
 use Pterodactyl\Models\Egg;
 use Pterodactyl\Models\Nest;
 use Pterodactyl\Models\Server;
+use Pterodactyl\Models\EggVariable;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
 
 class EggTransformer extends BaseTransformer
@@ -15,7 +16,7 @@ class EggTransformer extends BaseTransformer
      * @var array
      */
     protected $availableIncludes = [
-        'nest', 'servers', 'config', 'script',
+        'nest', 'servers', 'config', 'script', 'variables',
     ];
 
     /**
@@ -45,10 +46,10 @@ class EggTransformer extends BaseTransformer
             'description' => $model->description,
             'docker_image' => $model->docker_image,
             'config' => [
-                'files' => json_decode($model->config_files),
-                'startup' => json_decode($model->config_startup),
+                'files' => json_decode($model->config_files, true),
+                'startup' => json_decode($model->config_startup, true),
                 'stop' => $model->config_stop,
-                'logs' => json_decode($model->config_logs),
+                'logs' => json_decode($model->config_logs, true),
                 'extends' => $model->config_from,
             ],
             'startup' => $model->startup,
@@ -69,6 +70,7 @@ class EggTransformer extends BaseTransformer
      *
      * @param \Pterodactyl\Models\Egg $model
      * @return \League\Fractal\Resource\Item|\League\Fractal\Resource\NullResource
+     * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
     public function includeNest(Egg $model)
     {
@@ -86,6 +88,7 @@ class EggTransformer extends BaseTransformer
      *
      * @param \Pterodactyl\Models\Egg $model
      * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
+     * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
     public function includeServers(Egg $model)
     {
@@ -146,5 +149,27 @@ class EggTransformer extends BaseTransformer
                 'container' => $model->copy_script_container,
             ];
         });
+    }
+
+    /**
+     * Include the variables that are defined for this Egg.
+     *
+     * @param \Pterodactyl\Models\Egg $model
+     * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
+     * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
+     */
+    public function includeVariables(Egg $model)
+    {
+        if (! $this->authorize(AdminAcl::RESOURCE_EGGS)) {
+            return $this->null();
+        }
+
+        $model->loadMissing('variables');
+
+        return $this->collection(
+            $model->getRelation('variables'),
+            $this->makeTransformer(EggVariableTransformer::class),
+            EggVariable::RESOURCE_NAME
+        );
     }
 }

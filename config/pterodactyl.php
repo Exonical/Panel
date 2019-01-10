@@ -153,14 +153,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Language Editor
+    | Client Features
     |--------------------------------------------------------------------------
     |
-    | Set `PHRASE_IN_CONTEXT` to true to enable the PhaseApp in-context editor
-    | on this site which allows you to translate the panel, from the panel.
+    | Allow clients to create their own databases.
     */
-    'lang' => [
-        'in_context' => env('PHRASE_IN_CONTEXT', false),
+    'client_features' => [
+        'databases' => [
+            'enabled' => env('PTERODACTYL_CLIENT_DATABASES_ENABLED', true),
+            'allow_random' => env('PTERODACTYL_CLIENT_DATABASES_ALLOW_RANDOM', true),
+        ],
     ],
 
     /*
@@ -184,6 +186,7 @@ return [
             'text/plain',
             'text/x-perl',
             'text/x-shellscript',
+            'text/x-python',
         ],
     ],
 

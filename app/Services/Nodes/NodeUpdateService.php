@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Services\Nodes;
 
@@ -13,7 +6,6 @@ use Pterodactyl\Models\Node;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\ConnectionInterface;
-use Pterodactyl\Traits\Services\ReturnsUpdatedModels;
 use Pterodactyl\Contracts\Repository\NodeRepositoryInterface;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 use Pterodactyl\Exceptions\Service\Node\ConfigurationNotPersistedException;
@@ -21,8 +13,6 @@ use Pterodactyl\Contracts\Repository\Daemon\ConfigurationRepositoryInterface;
 
 class NodeUpdateService
 {
-    use ReturnsUpdatedModels;
-
     /**
      * @var \Illuminate\Database\ConnectionInterface
      */
@@ -60,28 +50,41 @@ class NodeUpdateService
      *
      * @param \Pterodactyl\Models\Node $node
      * @param array                    $data
-     * @return \Pterodactyl\Models\Node|mixed
+     * @param bool                     $resetToken
      *
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @return \Pterodactyl\Models\Node
+     *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
+     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws \Pterodactyl\Exceptions\Service\Node\ConfigurationNotPersistedException
      */
-    public function handle(Node $node, array $data)
+    public function handle(Node $node, array $data, bool $resetToken = false)
     {
-        if (! is_null(array_get($data, 'reset_secret'))) {
+        if ($resetToken) {
             $data['daemonSecret'] = str_random(Node::DAEMON_SECRET_LENGTH);
-            unset($data['reset_secret']);
         }
 
         $this->connection->beginTransaction();
-        if ($this->getUpdatedModel()) {
-            $response = $this->repository->update($node->id, $data);
-        } else {
-            $response = $this->repository->withoutFreshModel()->update($node->id, $data);
-        }
+
+        /** @var \Pterodactyl\Models\Node $updatedModel */
+        $updatedModel = $this->repository->update($node->id, $data);
 
         try {
-            $this->configRepository->setNode($node)->update();
+            if ($resetToken) {
+                // We need to clone the new model and set it's authentication token to be the
+                // old one so we can connect. Then we will pass the new token through as an
+                // override on the call.
+                $cloned = $updatedModel->replicate(['daemonSecret']);
+                $cloned->setAttribute('daemonSecret', $node->getAttribute('daemonSecret'));
+
+                $this->configRepository->setNode($cloned)->update([
+                    'keys' => [$data['daemonSecret']],
+                ]);
+            } else {
+                $this->configRepository->setNode($updatedModel)->update();
+            }
+
             $this->connection->commit();
         } catch (RequestException $exception) {
             // Failed to connect to the Daemon. Let's go ahead and save the configuration
@@ -95,6 +98,6 @@ class NodeUpdateService
             throw new DaemonConnectionException($exception);
         }
 
-        return $response;
+        return $updatedModel;
     }
 }

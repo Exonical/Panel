@@ -2,6 +2,7 @@
 
 namespace Pterodactyl\Http;
 
+use Pterodactyl\Models\ApiKey;
 use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Auth\Middleware\Authenticate;
 use Pterodactyl\Http\Middleware\TrimStrings;
@@ -14,26 +15,29 @@ use Pterodactyl\Http\Middleware\AdminAuthenticate;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Pterodactyl\Http\Middleware\LanguageMiddleware;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
+use Pterodactyl\Http\Middleware\Api\AuthenticateKey;
 use Illuminate\Routing\Middleware\SubstituteBindings;
-use Pterodactyl\Http\Middleware\AccessingValidServer;
+use Pterodactyl\Http\Middleware\Api\SetSessionDriver;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Pterodactyl\Http\Middleware\MaintenanceMiddleware;
 use Pterodactyl\Http\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\Middleware\AuthenticateWithBasicAuth;
+use Pterodactyl\Http\Middleware\Api\AuthenticateIPAccess;
 use Pterodactyl\Http\Middleware\Api\ApiSubstituteBindings;
 use Illuminate\Foundation\Http\Middleware\ValidatePostSize;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Pterodactyl\Http\Middleware\Server\AccessingValidServer;
 use Pterodactyl\Http\Middleware\Server\AuthenticateAsSubuser;
 use Pterodactyl\Http\Middleware\Api\Daemon\DaemonAuthenticate;
 use Pterodactyl\Http\Middleware\Server\SubuserBelongsToServer;
 use Pterodactyl\Http\Middleware\RequireTwoFactorAuthentication;
 use Pterodactyl\Http\Middleware\Server\DatabaseBelongsToServer;
 use Pterodactyl\Http\Middleware\Server\ScheduleBelongsToServer;
-use Pterodactyl\Http\Middleware\Api\Application\AuthenticateKey;
-use Pterodactyl\Http\Middleware\Api\Application\AuthenticateUser;
-use Pterodactyl\Http\Middleware\Api\Application\SetSessionDriver;
 use Illuminate\Foundation\Http\Middleware\CheckForMaintenanceMode;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
-use Pterodactyl\Http\Middleware\Api\Application\AuthenticateIPAccess;
+use Pterodactyl\Http\Middleware\Api\Client\SubstituteClientApiBindings;
+use Pterodactyl\Http\Middleware\Api\Application\AuthenticateApplicationUser;
 use Pterodactyl\Http\Middleware\DaemonAuthenticate as OldDaemonAuthenticate;
 
 class Kernel extends HttpKernel
@@ -61,6 +65,7 @@ class Kernel extends HttpKernel
             EncryptCookies::class,
             AddQueuedCookiesToResponse::class,
             StartSession::class,
+            AuthenticateSession::class,
             ShareErrorsFromSession::class,
             VerifyCsrfToken::class,
             SubstituteBindings::class,
@@ -71,8 +76,15 @@ class Kernel extends HttpKernel
             'throttle:120,1',
             ApiSubstituteBindings::class,
             SetSessionDriver::class,
-            AuthenticateKey::class,
-            AuthenticateUser::class,
+            'api..key:' . ApiKey::TYPE_APPLICATION,
+            AuthenticateApplicationUser::class,
+            AuthenticateIPAccess::class,
+        ],
+        'client-api' => [
+            'throttle:60,1',
+            SubstituteClientApiBindings::class,
+            SetSessionDriver::class,
+            'api..key:' . ApiKey::TYPE_ACCOUNT,
             AuthenticateIPAccess::class,
         ],
         'daemon' => [
@@ -99,13 +111,17 @@ class Kernel extends HttpKernel
         'can' => Authorize::class,
         'bindings' => SubstituteBindings::class,
         'recaptcha' => VerifyReCaptcha::class,
+        'node.maintenance' => MaintenanceMiddleware::class,
 
         // Server specific middleware (used for authenticating access to resources)
         //
-        // These are only used for individual server authentication, and not gloabl
+        // These are only used for individual server authentication, and not global
         // actions from other resources. They are defined in the route files.
         'server..database' => DatabaseBelongsToServer::class,
         'server..subuser' => SubuserBelongsToServer::class,
         'server..schedule' => ScheduleBelongsToServer::class,
+
+        // API Specific Middleware
+        'api..key' => AuthenticateKey::class,
     ];
 }

@@ -66,7 +66,7 @@
                                 </optgroup>
                             @endforeach
                         </select>
-                        <p class="text-muted small">The option that this pack is assocaited with. Only servers that are assigned this option will be able to access this pack. This assigned option <em>cannot</em> be changed if servers are attached to this pack.</p>
+                        <p class="text-muted small">The option that this pack is associated with. Only servers that are assigned this option will be able to access this pack. This assigned option <em>cannot</em> be changed if servers are attached to this pack.</p>
                     </div>
                     <div class="form-group">
                         <div class="checkbox checkbox-primary no-margin-bottom">
@@ -98,8 +98,8 @@
                 </div>
                 <div class="box-footer with-border">
                     {!! csrf_field() !!}
-                    <button name="_method" value="DELETE" class="btn btn-sm btn-danger pull-left muted muted-hover" type="submit"><i class="fa fa-trash-o"></i></button>
                     <button name="_method" value="PATCH" class="btn btn-sm btn-primary pull-right" type="submit">Save</button>
+                    <button name="_method" value="DELETE" class="btn btn-sm btn-danger pull-left muted muted-hover" type="submit"><i class="fa fa-trash-o"></i></button>
                 </div>
             </div>
         </div>

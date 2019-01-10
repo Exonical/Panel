@@ -263,7 +263,7 @@ class NodesController extends Controller
      */
     public function updateSettings(NodeFormRequest $request, Node $node)
     {
-        $this->updateService->handle($node, $request->normalize());
+        $this->updateService->handle($node, $request->normalize(), $request->input('reset_secret') === 'on');
         $this->alert->success(trans('admin/node.notices.node_updated'))->flash();
 
         return redirect()->route('admin.nodes.view.settings', $node->id)->withInput();
@@ -281,6 +281,27 @@ class NodesController extends Controller
     public function allocationRemoveSingle(int $node, Allocation $allocation): Response
     {
         $this->allocationDeletionService->handle($allocation);
+
+        return response('', 204);
+    }
+
+    /**
+     * Removes multiple individual allocations from a node.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int                      $node
+     * @return \Illuminate\Http\Response
+     *
+     * @throws \Pterodactyl\Exceptions\Service\Allocation\ServerUsingAllocationException
+     */
+    public function allocationRemoveMultiple(Request $request, int $node): Response
+    {
+        $allocations = $request->input('allocations');
+        foreach ($allocations as $rawAllocation) {
+            $allocation = new Allocation();
+            $allocation->id = $rawAllocation['id'];
+            $this->allocationRemoveSingle($node, $allocation);
+        }
 
         return response('', 204);
     }
@@ -331,7 +352,10 @@ class NodesController extends Controller
      * @param int|\Pterodactyl\Models\Node                                $node
      * @return \Illuminate\Http\RedirectResponse
      *
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws \Pterodactyl\Exceptions\Service\Allocation\CidrOutOfRangeException
+     * @throws \Pterodactyl\Exceptions\Service\Allocation\InvalidPortMappingException
+     * @throws \Pterodactyl\Exceptions\Service\Allocation\PortOutOfRangeException
+     * @throws \Pterodactyl\Exceptions\Service\Allocation\TooManyPortsInRangeException
      */
     public function createAllocation(AllocationFormRequest $request, Node $node)
     {
@@ -366,7 +390,7 @@ class NodesController extends Controller
     public function setToken(Node $node)
     {
         $token = bin2hex(random_bytes(16));
-        $this->cache->tags(['Node:Configuration'])->put($token, $node->id, 5);
+        $this->cache->put('Node:Configuration:' . $token, $node->id, 5);
 
         return response()->json(['token' => $token]);
     }

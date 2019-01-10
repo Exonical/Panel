@@ -5,7 +5,9 @@ namespace Tests\Unit\Services\Eggs\Variables;
 use Exception;
 use Mockery as m;
 use Tests\TestCase;
+use BadMethodCallException;
 use Pterodactyl\Models\EggVariable;
+use Illuminate\Contracts\Validation\Factory;
 use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Services\Eggs\Variables\VariableUpdateService;
 use Pterodactyl\Contracts\Repository\EggVariableRepositoryInterface;
@@ -15,17 +17,17 @@ class VariableUpdateServiceTest extends TestCase
     /**
      * @var \Pterodactyl\Models\EggVariable|\Mockery\Mock
      */
-    protected $model;
+    private $model;
 
     /**
      * @var \Pterodactyl\Contracts\Repository\EggVariableRepositoryInterface|\Mockery\Mock
      */
-    protected $repository;
+    private $repository;
 
     /**
-     * @var \Pterodactyl\Services\Eggs\Variables\VariableUpdateService
+     * @var \Illuminate\Contracts\Validation\Factory|\Mockery\Mock
      */
-    protected $service;
+    private $validator;
 
     /**
      * Setup tests.
@@ -36,8 +38,7 @@ class VariableUpdateServiceTest extends TestCase
 
         $this->model = factory(EggVariable::class)->make();
         $this->repository = m::mock(EggVariableRepositoryInterface::class);
-
-        $this->service = new VariableUpdateService($this->repository);
+        $this->validator = m::mock(Factory::class);
     }
 
     /**
@@ -46,29 +47,28 @@ class VariableUpdateServiceTest extends TestCase
     public function testVariableIsUpdatedWhenNoEnvironmentVariableIsPassed()
     {
         $this->repository->shouldReceive('withoutFreshModel')->withNoArgs()->once()->andReturnSelf()
-            ->shouldReceive('update')->with($this->model->id, [
+            ->shouldReceive('update')->with($this->model->id, m::subset([
                 'user_viewable' => false,
                 'user_editable' => false,
-                'test-data' => 'test-value',
-            ])->once()->andReturn(true);
+            ]))->once()->andReturn(true);
 
-        $this->assertTrue($this->service->handle($this->model, ['test-data' => 'test-value']));
+        $this->assertTrue($this->getService()->handle($this->model, []));
     }
 
     /**
-     * Test that a service variable ID can be passed in place of the model.
+     * Test that a null value passed in for the default is converted to a string.
+     *
+     * @see https://github.com/Pterodactyl/Panel/issues/934
      */
-    public function testVariableIdCanBePassedInPlaceOfModel()
+    public function testNullDefaultValue()
     {
-        $this->repository->shouldReceive('find')->with($this->model->id)->once()->andReturn($this->model);
-        $this->repository->shouldReceive('withoutFreshModel')->withNoArgs()->once()->andReturnSelf()
-            ->shouldReceive('update')->with($this->model->id, [
-                'user_viewable' => false,
-                'user_editable' => false,
-                'test-data' => 'test-value',
-            ])->once()->andReturn(true);
+        $this->repository->shouldReceive('withoutFreshModel->update')->with($this->model->id, m::subset([
+            'user_viewable' => false,
+            'user_editable' => false,
+            'default_value' => '',
+        ]))->once()->andReturn(true);
 
-        $this->assertTrue($this->service->handle($this->model->id, ['test-data' => 'test-value']));
+        $this->assertTrue($this->getService()->handle($this->model, ['default_value' => null]));
     }
 
     /**
@@ -84,31 +84,31 @@ class VariableUpdateServiceTest extends TestCase
             ])->once()->andReturn(0);
 
         $this->repository->shouldReceive('withoutFreshModel')->withNoArgs()->once()->andReturnSelf()
-            ->shouldReceive('update')->with($this->model->id, [
+            ->shouldReceive('update')->with($this->model->id, m::subset([
                 'user_viewable' => false,
                 'user_editable' => false,
                 'env_variable' => 'TEST_VAR_123',
-            ])->once()->andReturn(true);
+            ]))->once()->andReturn(true);
 
-        $this->assertTrue($this->service->handle($this->model, ['env_variable' => 'TEST_VAR_123']));
+        $this->assertTrue($this->getService()->handle($this->model, ['env_variable' => 'TEST_VAR_123']));
     }
 
     /**
      * Test that an empty (null) value passed in the option key is handled
-     * properly as an array.
+     * properly as an array. Also tests that a null description is handled.
      *
      * @see https://github.com/Pterodactyl/Panel/issues/841
      */
     public function testNullOptionValueIsPassedAsArray()
     {
         $this->repository->shouldReceive('withoutFreshModel')->withNoArgs()->once()->andReturnSelf()
-            ->shouldReceive('update')->with($this->model->id, [
+            ->shouldReceive('update')->with($this->model->id, m::subset([
                 'user_viewable' => false,
                 'user_editable' => false,
-                'options' => null,
-            ])->once()->andReturn(true);
+                'description' => '',
+            ]))->once()->andReturn(true);
 
-        $this->assertTrue($this->service->handle($this->model, ['options' => null]));
+        $this->assertTrue($this->getService()->handle($this->model, ['options' => null, 'description' => null]));
     }
 
     /**
@@ -124,13 +124,13 @@ class VariableUpdateServiceTest extends TestCase
             ])->once()->andReturn(0);
 
         $this->repository->shouldReceive('withoutFreshModel')->withNoArgs()->once()->andReturnSelf()
-            ->shouldReceive('update')->with($this->model->id, [
+            ->shouldReceive('update')->with($this->model->id, m::subset([
                 'user_viewable' => false,
                 'user_editable' => false,
                 'env_variable' => 'TEST_VAR_123',
-            ])->once()->andReturn(true);
+            ]))->once()->andReturn(true);
 
-        $this->assertTrue($this->service->handle($this->model, ['user_viewable' => 123456, 'env_variable' => 'TEST_VAR_123']));
+        $this->assertTrue($this->getService()->handle($this->model, ['user_viewable' => 123456, 'env_variable' => 'TEST_VAR_123']));
     }
 
     /**
@@ -146,7 +146,7 @@ class VariableUpdateServiceTest extends TestCase
             ])->once()->andReturn(1);
 
         try {
-            $this->service->handle($this->model, ['env_variable' => 'TEST_VAR_123']);
+            $this->getService()->handle($this->model, ['env_variable' => 'TEST_VAR_123']);
         } catch (Exception $exception) {
             $this->assertInstanceOf(DisplayException::class, $exception);
             $this->assertEquals(trans('exceptions.service.variables.env_not_unique', [
@@ -163,7 +163,51 @@ class VariableUpdateServiceTest extends TestCase
      */
     public function testExceptionIsThrownIfEnvironmentVariableIsInListOfReservedNames(string $variable)
     {
-        $this->service->handle($this->model, ['env_variable' => $variable]);
+        $this->getService()->handle($this->model, ['env_variable' => $variable]);
+    }
+
+    /**
+     * Test that validation errors due to invalid rules are caught and handled properly.
+     *
+     * @expectedException \Pterodactyl\Exceptions\Service\Egg\Variable\BadValidationRuleException
+     * @expectedExceptionMessage The validation rule "hodor_door" is not a valid rule for this application.
+     */
+    public function testInvalidValidationRulesResultInException()
+    {
+        $data = ['env_variable' => 'TEST_VAR_123', 'rules' => 'string|hodorDoor'];
+
+        $this->repository->shouldReceive('setColumns->findCountWhere')->once()->andReturn(0);
+
+        $this->validator->shouldReceive('make')->once()
+            ->with(['__TEST' => 'test'], ['__TEST' => 'string|hodorDoor'])
+            ->andReturnSelf();
+
+        $this->validator->shouldReceive('fails')->once()
+            ->withNoArgs()
+            ->andThrow(new BadMethodCallException('Method [validateHodorDoor] does not exist.'));
+
+        $this->getService()->handle($this->model, $data);
+    }
+
+    /**
+     * Test that an exception not stemming from a bad rule is not caught.
+     *
+     * @expectedException \BadMethodCallException
+     * @expectedExceptionMessage Received something, but no expectations were specified.
+     */
+    public function testExceptionNotCausedByBadRuleIsNotCaught()
+    {
+        $data = ['rules' => 'string'];
+
+        $this->validator->shouldReceive('make')->once()
+            ->with(['__TEST' => 'test'], ['__TEST' => 'string'])
+            ->andReturnSelf();
+
+        $this->validator->shouldReceive('fails')->once()
+            ->withNoArgs()
+            ->andThrow(new BadMethodCallException('Received something, but no expectations were specified.'));
+
+        $this->getService()->handle($this->model, $data);
     }
 
     /**
@@ -180,5 +224,15 @@ class VariableUpdateServiceTest extends TestCase
         }
 
         return $data;
+    }
+
+    /**
+     * Return an instance of the service with mocked dependencies for testing.
+     *
+     * @return \Pterodactyl\Services\Eggs\Variables\VariableUpdateService
+     */
+    private function getService(): VariableUpdateService
+    {
+        return new VariableUpdateService($this->repository, $this->validator);
     }
 }
